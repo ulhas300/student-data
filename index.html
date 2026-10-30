@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSE // Student Registry</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--g:#39ff14;--c:#00e5ff;--bg:#04070a;--p:#0a1117;--m:#5f8f6a;--r:#ff4d6d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--g);font:15px/1.6 "Share Tech Mono",ui-monospace,Consolas,monospace;min-height:100vh}
+#rain{position:fixed;inset:0;z-index:0;opacity:.28}
+.w{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:18px 14px 40px}
+h1{font-family:Orbitron,"Share Tech Mono",monospace;font-weight:800;font-size:1.5rem;margin:6px 0 2px;letter-spacing:2px;color:var(--g);text-shadow:0 0 8px var(--g),2px 0 var(--r),-2px 0 var(--c);animation:gl 3s infinite}
+@keyframes gl{0%,92%,100%{text-shadow:0 0 8px var(--g),0 0 var(--r)}94%{text-shadow:3px 0 var(--r),-3px 0 var(--c)}97%{text-shadow:-3px 0 var(--r),3px 0 var(--c)}}
+.sub{color:var(--c);margin:0 0 16px;font-size:.85rem}
+.term{background:var(--p);border:1px solid #16402a;border-radius:10px;box-shadow:0 0 22px #39ff1422;margin-bottom:18px;overflow:hidden}
+.bar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:#0d1a14;border-bottom:1px solid #16402a;font-size:.8rem;color:var(--m)}
+.bar i{width:10px;height:10px;border-radius:50%;background:var(--r)}.bar i:nth-child(2){background:#ffd166}.bar i:nth-child(3){background:var(--g)}
+.bar span{margin-left:8px}
+.body{padding:16px}
+label{display:block;color:var(--c);font-size:.85rem;margin:12px 0 2px}
+label:before{content:"> ";color:var(--g)}
+input,select{width:100%;background:#000;color:var(--g);border:1px solid #16402a;border-radius:6px;padding:10px;font:inherit;caret-color:var(--g)}
+input:focus,select:focus{outline:0;border-color:var(--g);box-shadow:0 0 10px #39ff1466}
+input::placeholder{color:#2f5a3a}
+button{font:inherit;background:transparent;color:var(--g);border:1px solid var(--g);border-radius:6px;padding:10px 16px;cursor:pointer;letter-spacing:1px;margin:14px 8px 0 0}
+button:hover{background:var(--g);color:#000;box-shadow:0 0 14px var(--g)}
+button.c{color:var(--c);border-color:var(--c)}button.c:hover{background:var(--c);color:#000;box-shadow:0 0 14px var(--c)}
+.msg{min-height:1.5em;margin-top:12px;font-size:.9rem}
+.ok{color:var(--g)}.er{color:var(--r)}
+.cur:after{content:"_";animation:b 1s steps(1) infinite}@keyframes b{50%{opacity:0}}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.82rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #16402a;white-space:nowrap}th{color:var(--c)}
+.hide{display:none}
+.foot{text-align:center;color:var(--m);font-size:.75rem;margin-top:20px}
+.foot a{color:var(--c);cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+<div class="w">
+<h1 id="title">&lt;CSE_REGISTRY/&gt;</h1>
+<p class="sub" id="sub"></p>
+
+<div class="term" id="reg">
+<div class="bar"><i></i><i></i><i></i><span>student@cse:~$ ./register.sh</span></div>
+<form class="body" id="f" onsubmit="return false">
+<div id="s1"><label>login_email</label><input id="em" type="email" placeholder="you@example.com" autocomplete="email"><button type="button" id="b1">[ SEND CODE ]</button></div>
+<div id="s2" class="hide"><label>verification_code (check inbox / spam)</label><input id="otp" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code"><button type="button" id="b2">[ VERIFY ]</button></div>
+<div id="s3" class="hide"><div class="ok" id="who"></div><div class="sub" id="note"></div>
+<label>class_roll</label><input name="roll" required placeholder="e.g. 1" autocomplete="off">
+<label>full_name</label><input name="name" required placeholder="Your name" autocomplete="name">
+<label>gender</label><select name="gender" required><option value="">-- select --</option><option>Male</option><option>Female</option><option>Other</option></select>
+<label>phone_number</label><input name="phone" type="tel" required pattern="[0-9+ \-]{7,15}" placeholder="10-digit number" autocomplete="tel">
+<label>attach_pdf (optional, max 5 MB)</label><input id="pf" type="file" accept="application/pdf,.pdf">
+<button type="button" id="go">[ SUBMIT ]</button></div>
+<div class="msg" id="msg"><span class="cur">login with your email</span></div>
+</form>
+</div>
+
+<div class="term hide" id="adm">
+<div class="bar"><i></i><i></i><i></i><span>root@cse:~# admin</span></div>
+<div class="body">
+<div id="cnt" class="ok"></div>
+<button onclick="pdf()">[ INFO PDF ]</button><button onclick="zip()">[ ZIP OF PDFs ]</button><button class="c" onclick="loadAdmin()">[ REFRESH ]</button>
+<div class="tw" style="margin-top:12px"><table><thead><tr><th>Roll</th><th>Name</th><th>Gender</th><th>Phone</th><th>Email</th><th>PDF</th></tr></thead><tbody id="tb"></tbody></table></div>
+</div>
+</div>
+
+<div class="foot">// Built by ULHAS MONDAL &bull; <a onclick="admin()">admin</a></div>
+</div>
+
+<script>
+// ===== SETTINGS: edit these 3 lines =====
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz0FY2BeAKW6Gtz8qvAEZ0Bx06T5GwAg4szHI_YPh3weJcGyRqQhpnL9zEh4XogQQMLnA/exec";   // paste your Google Apps Script Web App URL here
+const COLLEGE = "GCETTS";
+const DEPT = "Department of CSE";
+const DEPT_SHORT = "CSE";   // used in PDF file names
+// ========================================
+const $=id=>document.getElementById(id);
+$("sub").textContent=COLLEGE+" // "+DEPT;
+let rows=[];
+function say(t,c){$("msg").innerHTML='<span class="'+c+'">'+t+'</span>'}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+// matrix rain
+(function(){const c=$("rain"),x=c.getContext("2d"),ch="01<>{}[]/;$#&*+=".split("");let cols,drops;
+function size(){c.width=innerWidth;c.height=innerHeight;cols=Math.floor(c.width/16);drops=Array(cols).fill(1)}size();addEventListener("resize",size);
+setInterval(()=>{x.fillStyle="rgba(4,7,10,.12)";x.fillRect(0,0,c.width,c.height);x.fillStyle="#39ff14";x.font="14px monospace";
+drops.forEach((y,i)=>{x.fillText(ch[Math.random()*ch.length|0],i*16,y*16);if(y*16>c.height&&Math.random()>.975)drops[i]=0;drops[i]++})},60)})();
+
+// login by email code, then submit (same email can edit: old entry is replaced)
+let EM="",OTP="";
+function fileB64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(f)})}
+async function api(d){
+if(SCRIPT_URL){const r=await fetch(SCRIPT_URL,{method:"POST",body:JSON.stringify(d)});return await r.json()}
+const a=JSON.parse(localStorage.getItem("demo")||"[]"),i=a.findIndex(s=>s.email.toLowerCase()===d.email.toLowerCase());
+if(d.action==="send")return{ok:true,msg:"Demo mode: your code is 123456 (files are not saved in demo mode)"};
+if(d.otp!=="123456")return{ok:false,msg:"Wrong code."};
+if(d.action==="verify")return{ok:true,rec:i>=0?a[i]:null};
+if(a.some((s,j)=>s.roll===d.roll&&j!==i))return{ok:false,msg:"This class roll is already registered by another email."};
+const rec={roll:d.roll,name:d.name,gender:d.gender,phone:d.phone,email:d.email};
+if(i>=0)a[i]=rec;else a.push(rec);localStorage.setItem("demo",JSON.stringify(a));return{ok:true}}
+async function run(d,onOk){say("processing...","ok");try{const r=await api(d);if(r.ok){onOk(r)}else say("[ERROR] "+esc(r.msg||"failed"),"er")}catch(e){say("[ERROR] network problem, try again.","er")}}
+$("b1").onclick=()=>{const e=$("em").value.trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)){say("[ERROR] enter a valid email","er");return}
+run({action:"send",email:e},r=>{EM=e;$("s1").classList.add("hide");$("s2").classList.remove("hide");say("[OK] "+esc(r.msg||"code sent"),"ok")})};
+$("b2").onclick=()=>{OTP=$("otp").value.trim();if(!OTP){say("[ERROR] enter the code","er");return}
+run({action:"verify",email:EM,otp:OTP},r=>{$("s2").classList.add("hide");$("s3").classList.remove("hide");$("who").textContent="logged in as "+EM;
+const f=$("f");$("note").textContent="";
+if(r.rec){["roll","name","gender","phone"].forEach(k=>f.elements[k].value=r.rec[k]||"");$("note").textContent="You already submitted. Saving again replaces your previous entry"+(r.rec.hasFile?" (your earlier PDF is kept unless you attach a new one).":".")}
+say("[OK] verified. fill your details.","ok")})};
+$("go").onclick=async()=>{const f=$("f");if(!f.reportValidity())return;
+const d={action:"submit",email:EM,otp:OTP,dept:DEPT_SHORT};["roll","name","gender","phone"].forEach(k=>d[k]=f.elements[k].value.trim());
+const fl=$("pf").files[0];
+if(fl){if(!/\.pdf$/i.test(fl.name)){say("[ERROR] only PDF files are allowed","er");return}
+if(fl.size>5*1024*1024){say("[ERROR] PDF must be under 5 MB","er");return}
+say("reading file...","ok");try{d.file=await fileB64(fl)}catch(e){say("[ERROR] could not read file","er");return}}
+run(d,()=>{$("s3").classList.add("hide");say("[OK] saved! Thank you, "+esc(d.name)+". To change anything, log in again with the same email.","ok")})};
+
+// admin
+async function admin(){const pin=prompt("Enter admin PIN");if(pin===null)return;window.PIN=pin;await loadAdmin()}
+async function loadAdmin(){
+try{
+if(SCRIPT_URL){const r=await fetch(SCRIPT_URL+"?key="+encodeURIComponent(window.PIN||""));const j=await r.json();if(j.error){alert("Access denied");return}rows=j}
+else rows=JSON.parse(localStorage.getItem("demo")||"[]");
+rows.sort((a,b)=>String(a.roll).localeCompare(String(b.roll),undefined,{numeric:true}));
+$("adm").classList.remove("hide");$("cnt").textContent="$ "+rows.length+" record(s), "+rows.filter(s=>s.fileId).length+" PDF(s) attached";
+$("tb").innerHTML=rows.map(s=>`<tr><td>${esc(s.roll)}</td><td>${esc(s.name)}</td><td>${esc(s.gender)}</td><td>${esc(s.phone)}</td><td>${esc(s.email)}</td><td>${s.fileId?"yes":"-"}</td></tr>`).join("");
+$("adm").scrollIntoView({behavior:"smooth"})
+}catch(e){alert("Could not load data. Check SCRIPT_URL and deployment settings.")}}
+
+// zip of all attached PDFs
+async function zip(){const L=rows.filter(s=>s.fileId);if(!L.length){alert("No PDFs attached yet");return}
+const z=new JSZip();let n=0;
+for(const s of L){$("cnt").textContent="$ downloading PDF "+(++n)+" of "+L.length+" ...";
+try{const r=await fetch(SCRIPT_URL+"?action=file&id="+encodeURIComponent(s.fileId)+"&key="+encodeURIComponent(window.PIN||""));const j=await r.json();if(j.data)z.file(j.name,j.data,{base64:true})}catch(e){}}
+const b=await z.generateAsync({type:"blob"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="student-pdfs.zip";a.click();
+$("cnt").textContent="$ "+L.length+" PDF(s) zipped and downloaded"}
+
+// pdf
+function pdf(){if(!rows.length){alert("No records yet");return}
+const {jsPDF}=window.jspdf,d=new jsPDF({unit:"pt",format:"a4"}),W=d.internal.pageSize.getWidth();
+d.setFont("helvetica","bold").setFontSize(16);d.text(COLLEGE,W/2,40,{align:"center"});
+d.setFontSize(12);d.text(DEPT+" - Student List",W/2,60,{align:"center"});
+d.setFont("helvetica","normal").setFontSize(9);d.text("Generated: "+new Date().toLocaleDateString()+"   |   Total: "+rows.length,W/2,76,{align:"center"});
+d.autoTable({startY:90,head:[["Class roll","Name","Gender","Phone number","Email"]],
+body:rows.map(s=>[s.roll,s.name,s.gender,s.phone,s.email]),
+styles:{fontSize:10,cellPadding:6},headStyles:{fillColor:[10,40,20],textColor:[57,255,20]},margin:{left:36,right:36}});
+const n=d.getNumberOfPages();for(let p=1;p<=n;p++){d.setPage(p);d.setFontSize(8).setTextColor(120);d.text("Page "+p+" of "+n,W-36,d.internal.pageSize.getHeight()-20,{align:"right"})}
+d.save("student-list.pdf")}
+</script>
+</body>
+</html>
